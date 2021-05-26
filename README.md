@@ -1,4 +1,5 @@
 # MobileNet
+ref to: https://www.cnblogs.com/wj-1314/p/10494911.html
 >Mobilenet 
 <br />顧名思義為應用於手機，嵌入式設備而設計的模型，主要克服應用場景為low latency, speed fast目標。 <br />
 在傳統的CNN中，根據模型深度越多，複雜度也越高，參數也隨之增加，而面臨內存不足問題，mobilenet就是為了解決此問題以減少參數而不影響accuracy之下，提出 depthwise separable convolution 深度可分離卷積，包含depthwise convolution以及pointwise convolution兩個計算理念，通常大部分模型架構由convolution 和fully connect組成，而convolution相比於fully connect計算量大很多，因此只關注在convolution上，<br />
