@@ -1,6 +1,7 @@
 # MobileNet
->>Mobilenet 
-顧名思義為應用於手機，嵌入式設備而設計的模型，主要克服應用場景為low latency, speed fast目標。在傳統的CNN中，根據模型深度越多，複雜度也越高，參數也隨之增加，而面臨內存不足問題，mobilenet就是為了解決此問題以減少參數而不影響accuracy之下，提出 depthwise separable convolution 深度可分離卷積，包含depthwise convolution以及pointwise convolution兩個計算理念，通常大部分模型架構由convolution 和fully connect組成，而convolution相比於fully connect計算量大很多，因此只關注在convolution上，
+>Mobilenet 
+<br />顧名思義為應用於手機，嵌入式設備而設計的模型，主要克服應用場景為low latency, speed fast目標。 <br />
+在傳統的CNN中，根據模型深度越多，複雜度也越高，參數也隨之增加，而面臨內存不足問題，mobilenet就是為了解決此問題以減少參數而不影響accuracy之下，提出 depthwise separable convolution 深度可分離卷積，包含depthwise convolution以及pointwise convolution兩個計算理念，通常大部分模型架構由convolution 和fully connect組成，而convolution相比於fully connect計算量大很多，因此只關注在convolution上，<br />
 首先depthwise convolution: 將卷積核拆分為單channel形式，對每channel進行convolution，因此輸入和輸出channel不變
 結合pointwise convolution，將input channel融合，對feature map進行升維或是降維，
 標準convolution計算量為filter_wight*filter_height*channel*filter_count*feature_map_width*feature_map_height，經過depthwise convolution與pointwise convolution後計算量為filter_width*filter_height*channel*feature_map_width*feature_map_height + 1*1*channel*filter_count*feature_map_width*feature_map_height = 相比於mobilenet只有1/N(filter_count) + 1/(filter_width*filter_height) = 通常使用3x3 filter 約計算量下降到 1/9- 1/8
