@@ -56,7 +56,10 @@ args = parser.parse_args()
 
 if torch.cuda.is_available():
     if args.cuda:
+        ### 32 bit floats -- GPU Tensor
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
+        ### 16 bit single float -- GPU Tensor 
+        # torch.set_default_tensor_type('torch.cuda.HalfTensor')
     if not args.cuda:
         print("WARNING: It looks like you have a CUDA device, but aren't " +
               "using CUDA.\nRun with --cuda for optimal training speed.")

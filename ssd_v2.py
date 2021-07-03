@@ -92,7 +92,11 @@ class SSD(nn.Module):
             x = old_output
           if k>= 15 and k%8 == 0 :
             x += old_output
+            
             x = self.mb[k](x)
+            #print('x_size: ' , self.mb[k], k)
+            if k in [32, 56, 72, 80, 96, 112]:
+              sources.append(x)
             '''
             if old == 1:
               print(old)
@@ -109,31 +113,32 @@ class SSD(nn.Module):
           else:
             #print('ere')
             x = self.mb[k](x)
-        sources.append(x) 
+         
         #print('xxx: ', x.size())   
         #print('start extra layers')
         # apply extra layers and cache source layer outputs
         #print(self.extras)
-        for k, v in enumerate(self.extras):
+        #for k, v in enumerate(self.extras):
             
-            x = v(x)
-            #print('here')
-            if k % 2 == 1:
-                #print(self.extras[k])
-                #print(x.size())
-                sources.append(x)
-        print('start apply multibox')
+        #    x = v(x)
+        #    #print('here')
+        #    if k % 2 == 1:
+        #        #print(self.extras[k])
+        #        #print(x.size())
+        #        sources.append(x)
+        #print('start apply multibox')
         # apply multibox head to source layers
-        print('loc: ' , self.loc)
-        print('conf:  ' , self.conf)
+        #print('loc: ' , self.loc)
+        #print('conf:  ' , self.conf)
+        #print('sources: ' , sources)
         for (x, l, c) in zip(sources, self.loc, self.conf):
-            print('wwwwwwwwwwwwwwwwwwwwww')
-            print('x: ' , x.size())
-            print('l: ' , l)
-            print('c: ' , c)
-            #loc.append(l(x).permute(0, 2, 3, 1).contiguous())
-            #conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-
+            #print('wwwwwwwwwwwwwwwwwwwwww')
+            #print('x: ' , x.size())
+            #print('l: ' , l)
+            #print('c: ' , c)
+            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
+            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
+        
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
         if self.phase == "test":
@@ -273,23 +278,24 @@ def mobilenet_arch(alpha=1.0, round_nearest=8):
 def multibox(mb, extra_layers, cfg, num_classes):
     loc_layers = []
     conf_layers = []
-    mb_source = [99, -3]
-    print('here: ',len(mb))
-    for i in range(len(mb)):
-      print(str(i) + ' : ' + str(mb[i]))
+    mb_source = [32, 56, 72, 80, 96, 112]
+    #print('here: ',len(mb))
+    #for i in range(len(mb)):
+    #  print(str(i) + ' : ' + str(mb[i]))
     for k, v in enumerate(mb_source):
-        print(mb[v])
         loc_layers += [nn.Conv2d(mb[v].out_channels,
                                  cfg[k] * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(mb[v].out_channels,
                         cfg[k] * num_classes, kernel_size=3, padding=1)]
+    '''
     for k, v in enumerate(extra_layers[1::2], 2):
         loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                  * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                   * num_classes, kernel_size=3, padding=1)]
-    print('loc_layers: ' , loc_layers)
-    print('conf_layers: ' , conf_layers)
+    '''
+    #print('loc_layers: ' , loc_layers)
+    #print('conf_layers: ' , conf_layers)
     return mb, extra_layers, (loc_layers, conf_layers)
 
 
@@ -319,6 +325,9 @@ def build_ssd(phase, size=300, num_classes=21):
     base_, extras_, head_ = multibox(mobilenet_arch(),
                                      add_extras(extras[str(size)], 1280),
                                      mbox[str(size)], num_classes)
+    print('based_: ' , base_)
+    print('extras_ : ', extras_)
+    print('head_:', head_)
     return SSD(phase, size, base_, extras_, head_, num_classes)
 if __name__ == '__main__':
     net = build_ssd('test')
