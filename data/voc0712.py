@@ -5,7 +5,7 @@ https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
 
 Updated by: Ellis Brown, Max deGroot
 """
-from .config import HOME
+#from .config import HOME
 import os.path as osp
 import sys
 import torch
@@ -25,8 +25,8 @@ VOC_CLASSES = (  # always index 0
     'sheep', 'sofa', 'train', 'tvmonitor')
 
 # note: if you used our download scripts, this should be right
-VOC_ROOT = osp.join(HOME, "data/VOCdevkit/")
-print('VOC_ROOT: ' , VOC_ROOT)
+#VOC_ROOT = osp.join(HOME, "data/VOCdevkit/")
+VOC_ROOT = '/data/pro_SSD_pytorch/ssd.pytorch-master/data/VOCdevkit'
 
 class VOCAnnotationTransform(object):
     """Transforms a VOC annotation into a Tensor of bbox coords and label index
@@ -104,7 +104,9 @@ class VOCDetection(data.Dataset):
         self.target_transform = target_transform
         self.name = dataset_name
         self._annopath = osp.join('%s', 'Annotations', '%s.xml')
+        print('anno: ', self._annopath)
         self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
+        print('imgpath: ' , self._imgpath)
         self.ids = list()
         for (year, name) in image_sets:
             rootpath = osp.join(self.root, 'VOC' + year)
@@ -112,7 +114,7 @@ class VOCDetection(data.Dataset):
                 self.ids.append((rootpath, line.strip()))
 
     def __getitem__(self, index):
-        
+        #print('index: ', index)
         im, gt, h, w = self.pull_item(index)
 
         return im, gt
@@ -122,8 +124,10 @@ class VOCDetection(data.Dataset):
 
     def pull_item(self, index):
         img_id = self.ids[index]
-
+        #print('img_id: ', img_id)
         target = ET.parse(self._annopath % img_id).getroot()
+        #print('target: ' , target)
+        #print('img_path: ', self._imgpath %img_id)
         img = cv2.imread(self._imgpath % img_id)
         height, width, channels = img.shape
 
@@ -183,3 +187,5 @@ class VOCDetection(data.Dataset):
             tensorized version of img, squeezed
         '''
         return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
+if __name__ == '__main__':
+    VOCDetection(root=VOC_ROOT)
