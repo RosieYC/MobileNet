@@ -1,7 +1,8 @@
 from data import *
 from utils.augmentations import SSDAugmentation
 from layers.modules import MultiBoxLoss
-from ssd_v2 import build_ssd
+#from ssd_v2 import build_ssd
+from mobilenet_extras_loc_conf import create_mobilenetv2_ssd_lite
 import os
 import sys
 import time
@@ -98,7 +99,9 @@ def train():
         import visdom
         viz = visdom.Visdom()
 
-    ssd_net = build_ssd('train', cfg['min_dim'], cfg['num_classes'])
+    #ssd_net = build_ssd('train', cfg['min_dim'], cfg['num_classes'])
+    ssd_net = create_mobilenetv2_ssd_lite('train', cfg['min_dim'], cfg['num_classes'])
+
     net = ssd_net
 
     if args.cuda:
@@ -241,7 +244,7 @@ def mobilenet_weights_init(m):
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
         xavier(m.weight.data)
-        m.bias.data.zero_()
+        #m.bias.data.zero_()
 
 
 def create_vis_plot(_xlabel, _ylabel, _title, _legend):

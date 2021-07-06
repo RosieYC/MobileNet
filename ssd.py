@@ -6,7 +6,7 @@ from layers import *
 from data import voc, coco
 import os
 from thop import profile
-from mobilenetv2 import *
+
 
 class SSD(nn.Module):
     """Single Shot Multibox Architecture
@@ -36,7 +36,7 @@ class SSD(nn.Module):
         self.size = size
 
         # SSD network
-        self.mb = nn.ModuleList(base)
+        self.vgg = nn.ModuleList(base)
         # Layer learns to scale the l2 normalized features from conv4_3
         self.L2Norm = L2Norm(512, 20)
         self.extras = nn.ModuleList(extras)
@@ -70,77 +70,34 @@ class SSD(nn.Module):
         sources = list()
         loc = list()
         conf = list()
-        '''
+        
         # apply vgg up to conv4_3 relu
-        for k in range(99):
-            x = self.mb[k](x)
+        for k in range(23):
+            x = self.vgg[k](x)
 
         s = self.L2Norm(x)
         sources.append(s)
 
         # apply vgg up to fc7
         for k in range(23, len(self.vgg)):
-            x = self.mb[k](x)
+            x = self.vgg[k](x)
         sources.append(x)
-        '''
-        old = 1
-        for k in range(len(self.mb)):
-          #print('k: ' , k )
-          #print(self.mb[k])
-          if k >= 15 and (k+1)%8 ==0 :
-            old_output = self.mb[k](x) 
-            print('old, k: ', k, old_output.size())
-            x = old_output
-          if k>= 15 and k%8 == 0 :
-            x += old_output
-            
-            x = self.mb[k](x)
-            print('k, x_size: ', k, x.size())
-            if k in [32, 56, 72, 80, 96, 112]:
-              
-              sources.append(x)
-            '''
-            if old == 1:
-              print(old)
-              old_output = self.mb[k](x)
-              x = old_output
-              print(old_output.size())
-              old = 0 
-            else:
-              print('aa: ', x.size())
-              print('qq: ' , old_output.size())
-              print('rrr: ' , x + old_output)
-              x += old_output
-              '''
-          else:
-            #print('ere')
-            x = self.mb[k](x)
-         
-        #print('xxx: ', x.size())   
-        #print('start extra layers')
+
+        
         # apply extra layers and cache source layer outputs
-        #print(self.extras)
-        #for k, v in enumerate(self.extras):
-            
-        #    x = v(x)
-        #    #print('here')
-        #    if k % 2 == 1:
-        #        #print(self.extras[k])
-        #        #print(x.size())
-        #        sources.append(x)
-        #print('start apply multibox')
+        for k, v in enumerate(self.extras):
+            x = F.relu(v(x), inplace=True)
+            if k % 2 == 1:
+                sources.append(x)
+
         # apply multibox head to source layers
-        #print('loc: ' , self.loc)
-        #print('conf:  ' , self.conf)
-        #print('sources: ' , sources)
         for (x, l, c) in zip(sources, self.loc, self.conf):
-            #print('wwwwwwwwwwwwwwwwwwwwww')
-            #print('x: ' , x.size())
-            #print('l: ' , l)
-            #print('c: ' , c)
+            print('x: ' , x.size())
+            print('l: ' , l)
+            print('c: ' , c)
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-        
+
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
         if self.phase == "test":
@@ -211,94 +168,30 @@ def add_extras(cfg, i, batch_norm=False):
         in_channels = v
     #print(layers)
     return layers
-def _make_divisible(ch, divisor=8, min_ch=None):
-    """
-    This function is taken from the original tf repo.
-    It ensures that all layers have a channel number that is divisible by 8
-    It can be seen here:
-    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
-    """
-    if min_ch is None:
-        min_ch = divisor
-    new_ch = max(min_ch, int(ch + divisor / 2) // divisor * divisor)
-    # Make sure that round down does not go down by more than 10%.
-    if new_ch < 0.9 * ch:
-        new_ch += divisor
-    return new_ch
-def mobilenet_arch(alpha=1.0, round_nearest=8):
-    block = InvertedResidual
-    input_channel = _make_divisible(32 * alpha, round_nearest)
-    last_channel = _make_divisible(1280 * alpha, round_nearest)
-    def CBNR(in_channel, out_channel, kernel_size=3, stride=1, groups=1):
-      padding = (kernel_size - 1) // 2
-      return [nn.Conv2d(in_channel, out_channel, kernel_size, stride, padding, groups=groups, bias=False),
-            nn.BatchNorm2d(out_channel),
-            nn.ReLU6(inplace=True)]
-            
-    def IDRS(in_channel, out_channel, stride, expand_ratio):
-      hidden_channel = in_channel * expand_ratio
-      use_shortcut = stride == 1 and in_channel == out_channel
 
-      layers = []
-      if expand_ratio != 1:
-          # 1x1 pointwise conv
-          layers += CBNR(in_channel, hidden_channel, kernel_size=1)
-      layers += CBNR(hidden_channel, hidden_channel, stride=stride, groups=hidden_channel)# 3x3 depthwise conv
-          # 1x1 pointwise conv(linear)
-      layers += [nn.Conv2d(hidden_channel, out_channel, kernel_size=1, bias=False),
-          nn.BatchNorm2d(out_channel)
-      ]
-      return layers 
-      
-    inverted_residual_setting = [
-        # t, c, n, s
-        [1, 16, 1, 1],
-        [6, 24, 2, 2],
-        [6, 32, 3, 2],
-        [6, 64, 4, 2],
-        [6, 96, 3, 1],
-        [6, 160, 3, 2],
-        [6, 320, 1, 1],
-    ]
-
-    features = []
-    # conv1 layer
-    #features.append(ConvBNReLU(3, input_channel, stride=2))
-    features = CBNR(3, input_channel, stride=2)
-    
-    # building inverted residual residual blockes
-    for t, c, n, s in inverted_residual_setting:
-        output_channel = _make_divisible(c * alpha, round_nearest)
-        for i in range(n):
-            stride = s if i == 0 else 1
-            features += IDRS(input_channel, output_channel, stride, expand_ratio=t)
-            input_channel = output_channel
-    # building last several layers
-    features += CBNR(input_channel, last_channel, 1)
-    #print(features)
-    return features
-def multibox(mb, extra_layers, cfg, num_classes):
+def multibox(vgg, extra_layers, cfg, num_classes):
+    for i in range(len(vgg)):
+      print(str(i) + ' : ' + str(vgg[i]))
     loc_layers = []
     conf_layers = []
-    mb_source = [32, 56, 72, 80, 96, 112]
-    #print('here: ',len(mb))
-    #for i in range(len(mb)):
-    #  print(str(i) + ' : ' + str(mb[i]))
-    for k, v in enumerate(mb_source):
-        loc_layers += [nn.Conv2d(mb[v].out_channels,
+    vgg_source = [21, -2]
+    for k, v in enumerate(vgg_source):
+        print('xxxxxxxxxxxxxxxxxxxxxxxxx')
+        print(vgg[v])
+        
+        loc_layers += [nn.Conv2d(vgg[v].out_channels,
                                  cfg[k] * 4, kernel_size=3, padding=1)]
-        conf_layers += [nn.Conv2d(mb[v].out_channels,
+        conf_layers += [nn.Conv2d(vgg[v].out_channels,
                         cfg[k] * num_classes, kernel_size=3, padding=1)]
-    '''
+        print('loc: ', loc_layers)
     for k, v in enumerate(extra_layers[1::2], 2):
         loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                  * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                   * num_classes, kernel_size=3, padding=1)]
-    '''
-    #print('loc_layers: ' , loc_layers)
-    #print('conf_layers: ' , conf_layers)
-    return mb, extra_layers, (loc_layers, conf_layers)
+    print('xxxxxxxxxxxxxxxxxxxxxxxx')
+    print('vgg: ' , vgg)
+    return vgg, extra_layers, (loc_layers, conf_layers)
 
 
 base = {
@@ -307,7 +200,7 @@ base = {
     '512': [],
 }
 extras = {
-    '300': [256, 'S', 512, 128, 'S', 256, 128, 256],#, 128, 256],
+    '300': [256, 'S', 512, 128, 'S', 256, 128, 256, 128, 256],
     '512': [],
 }
 mbox = {
@@ -324,12 +217,9 @@ def build_ssd(phase, size=300, num_classes=21):
         print("ERROR: You specified size " + repr(size) + ". However, " +
               "currently only SSD300 (size=300) is supported!")
         return
-    base_, extras_, head_ = multibox(mobilenet_arch(),
-                                     add_extras(extras[str(size)], 1280),
+    base_, extras_, head_ = multibox(vgg(base[str(size)], 3),
+                                     add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)
-    print('based_: ' , base_)
-    print('extras_ : ', extras_)
-    print('head_:', head_)
     return SSD(phase, size, base_, extras_, head_, num_classes)
 if __name__ == '__main__':
     net = build_ssd('test')

@@ -1,7 +1,7 @@
 from data import *
 from utils.augmentations import SSDAugmentation
 from layers.modules import MultiBoxLoss
-from ssd_v2 import build_ssd
+from ssd import build_ssd
 import os
 import sys
 import time
@@ -27,19 +27,19 @@ parser.add_argument('--dataset', default='VOC', choices=['VOC', 'COCO'],
                     type=str, help='VOC or COCO')
 parser.add_argument('--dataset_root', default=VOC_ROOT,
                     help='Dataset root directory path')
-parser.add_argument('--basenet', default='None',
-                    help='Pretrained base model')#vgg16_reducedfc.pth, mobilenetv2_1.0_0701.pth
+parser.add_argument('--basenet', default='vgg16_reducedfc.pth',
+                    help='Pretrained base model')
 parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
 parser.add_argument('--start_iter', default=0, type=int,
                     help='Resume training at this iter')
-parser.add_argument('--num_workers', default=1, type=int,
+parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
                     help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
                     help='Momentum value for optim')
@@ -56,10 +56,7 @@ args = parser.parse_args()
 
 if torch.cuda.is_available():
     if args.cuda:
-        ### 32 bit floats -- GPU Tensor
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        ### 16 bit single float -- GPU Tensor 
-        # torch.set_default_tensor_type('torch.cuda.HalfTensor')
     if not args.cuda:
         print("WARNING: It looks like you have a CUDA device, but aren't " +
               "using CUDA.\nRun with --cuda for optimal training speed.")
@@ -108,10 +105,10 @@ def train():
     if args.resume:
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
-    #else:
-    #    mb_weights = torch.load(args.save_folder + args.basenet)
-    #    print('Loading base network...')
-    #    ssd_net.mb.load_state_dict(mb_weights)
+    else:
+        vgg_weights = torch.load(args.save_folder + args.basenet)
+        print('Loading base network...')
+        ssd_net.vgg.load_state_dict(vgg_weights)
 
     if args.cuda:
         net = net.cuda()
@@ -119,7 +116,6 @@ def train():
     if not args.resume:
         print('Initializing weights...')
         # initialize newly added layers' weights with xavier method
-        ssd_net.mb.apply(mobilenet_weights_init)
         ssd_net.extras.apply(weights_init)
         ssd_net.loc.apply(weights_init)
         ssd_net.conf.apply(weights_init)
@@ -206,7 +202,7 @@ def train():
             epoch_loss += loss.item()
         if iteration != 0 and iteration % 5000 == 0:
             print('Saving state, iter:', iteration)
-            torch.save(ssd_net.state_dict(), 'weights/ssd300_VOC_' +
+            torch.save(ssd_net.state_dict(), 'weights/ssd300_COCO_' +
                        repr(iteration) + '.pth')
     torch.save(ssd_net.state_dict(),
                args.save_folder + '' + args.dataset + '.pth')
@@ -226,18 +222,7 @@ def adjust_learning_rate(optimizer, gamma, step):
 def xavier(param):
     init.xavier_uniform(param)
 
-def mobilenet_weights_init(m):
-    if isinstance(m, nn.Conv2d):
-      # using normal distribution, mean = 0 , std = sqrt(2/((1 + a^2)*fan_out)) 
-      nn.init.kaiming_normal_(m.weight, mode='fan_out')
-      if m.bias is not None:
-          nn.init.zeros_(m.bias)
-    elif isinstance(m, nn.BatchNorm2d):
-      nn.init.ones_(m.weight)
-      nn.init.zeros_(m.bias)
-    elif isinstance(m, nn.Linear):
-      nn.init.normal_(m.weight, 0, 0.01)
-      nn.init.zeros_(m.bias)
+
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
         xavier(m.weight.data)
