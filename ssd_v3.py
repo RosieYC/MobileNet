@@ -83,16 +83,58 @@ class SSD(nn.Module):
             x = self.vgg[k](x)
         sources.append(x)
         '''
-        for layer in self.mb:
-          x = layer(x)
-        ### extras
         tt = 0 
+        k = 0 
+        for layer in self.mb:
+                    
+          if k == 12:
+            x = layer.conv[0](x)
+            x = layer.conv[1][0](x)
+            #print('loc2: ' , self.conf[tt](x).size()) # [8, 24, 19, 19]
+            #print('conf2: ' , self.conf[tt](x).size()) # [8, 126, 19, 19]
+            loc.append(self.loc[tt](x).permute(0,2,3,1).contiguous())
+            conf.append(self.conf[tt](x).permute(0,2,3,1).contiguous())
+            x = layer.conv[1][1](x)
+            x = layer.conv[1][2](x)
+            x = layer.conv[2](x)
+            x = layer.conv[3](x)
+            tt += 1 
+          elif k == 18:
+            x = layer[0](x)
+            #print('loc2: ' , self.conf[tt](x).size())  # [8, 24, 10, 10]
+            #print('conf2: ' , self.conf[tt](x).size()) # [8, 126, 10, 10]
+            loc.append(self.loc[tt](x).permute(0,2,3,1).contiguous())
+            conf.append(self.conf[tt](x).permute(0,2,3,1).contiguous())
+            x = layer[1](x)
+            x = layer[2](x)
+            tt += 1 
+          else:
+            x = layer(x)
+          k+=1 
+          
+          
+        ### extras
+        k = 0 
         for layer in self.extras:
+          
           x = layer(x)
+          #print('tt : ' , tt, x.size())
+          #, self.loc[tt](x).size(), self.conf[tt](x).size())
+          #print('loc: ' , self.conf[tt](x).size())
+          
           loc.append(self.loc[tt](x).permute(0,2,3,1).contiguous())
           conf.append(self.conf[tt](x).permute(0,2,3,1).contiguous())
           tt += 1 
+        #print('x_final_size: ' , x.size())
+        ### 
+        #x = [8, 512, 5, 5], loc[2](x) = [8, 24, 5, 5], conf[2](x) = [8, 126, 5, 5]
+        #x = [8, 256, 3, 3], loc[3](x) = [8, 24, 3, 3], conf[3](x) = [8, 126, 3, 3]
+        #x = [8, 256, 2, 2], loc[4](x) = [8, 24, 2, 2], conf[4](x) = [8, 126, 2, 2]
+        #x = [8, 64, 1, 1],  loc[5](x) = [8, 24, 1, 1], conf[5](x) = [8, 126, 1, 1]
         
+          
+        
+        ###
         '''
         # apply extra layers and cache source layer outputs
         for k, v in enumerate(self.extras):
@@ -111,6 +153,8 @@ class SSD(nn.Module):
         '''
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+        #print('loc_size: ' , loc.size())
+        #print('conf_size: ' , conf.size())
         if self.phase == "test":
             output = self.detect(
                 loc.view(loc.size(0), -1, 4),                   # loc preds
@@ -188,7 +232,6 @@ def multibox(vgg, extra_layers, cfg, num_classes):
     vgg_source = [21, -2]
     for k, v in enumerate(vgg_source):
         print('xxxxxxxxxxxxxxxxxxxxxxxxx')
-        print(vgg[v])
         
         loc_layers += [nn.Conv2d(vgg[v].out_channels,
                                  cfg[k] * 4, kernel_size=3, padding=1)]
@@ -200,8 +243,7 @@ def multibox(vgg, extra_layers, cfg, num_classes):
                                  * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                   * num_classes, kernel_size=3, padding=1)]
-    print('xxxxxxxxxxxxxxxxxxxxxxxx')
-    print('vgg: ' , vgg)
+ 
     return vgg, extra_layers, (loc_layers, conf_layers)
 
 

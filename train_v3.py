@@ -16,6 +16,7 @@ import torch.utils.data as data
 import numpy as np
 import argparse
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -28,7 +29,7 @@ parser.add_argument('--dataset', default='VOC', choices=['VOC', 'COCO'],
                     type=str, help='VOC or COCO')
 parser.add_argument('--dataset_root', default=VOC_ROOT,
                     help='Dataset root directory path')
-parser.add_argument('--basenet', default='None',
+parser.add_argument('--basenet', default='mobilenetv2_1.0-0c6065bc.pth',
                     help='Pretrained base model')#vgg16_reducedfc.pth, mobilenetv2_1.0_0701.pth
 parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
@@ -36,7 +37,7 @@ parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
 parser.add_argument('--start_iter', default=0, type=int,
                     help='Resume training at this iter')
-parser.add_argument('--num_workers', default=1, type=int,
+parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
@@ -103,11 +104,11 @@ def train():
     ssd_net = create_mobilenetv2_ssd_lite('train', cfg['min_dim'], cfg['num_classes'])
 
     net = ssd_net
-
+    '''
     if args.cuda:
         net = torch.nn.DataParallel(ssd_net)
         cudnn.benchmark = True
-
+    ''' 
     if args.resume:
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
@@ -122,7 +123,7 @@ def train():
     if not args.resume:
         print('Initializing weights...')
         # initialize newly added layers' weights with xavier method
-        ssd_net.mb.apply(mobilenet_weights_init)
+        ssd_net.mb.apply(weights_init)#mobilenet_weights_init)
         ssd_net.extras.apply(weights_init)
         ssd_net.loc.apply(weights_init)
         ssd_net.conf.apply(weights_init)
