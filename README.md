@@ -1,3 +1,8 @@
+# this project is mobilenet + SSD 
+dataset = VOC
+
+
+
 # MobileNet
 ref to: https://www.cnblogs.com/wj-1314/p/10494911.html
 >Mobilenet 
