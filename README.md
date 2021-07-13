@@ -1,4 +1,4 @@
-# this project is mobilenet + SSD 
+# this project is mobilenetv2 + SSD 
 dataset = VOC
 
 
