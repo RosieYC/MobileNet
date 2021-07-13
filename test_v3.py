@@ -15,7 +15,7 @@ from ssd_v2 import build_ssd
 import cv2
 from mobilenet_extras_loc_conf import create_mobilenetv2_ssd_lite
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
-parser.add_argument('--trained_model', default='weights/VOC.pth',
+parser.add_argument('--trained_model', default='weights/ssd300_VOC_40000.pth',
                     type=str, help='Trained state_dict file path to open')
 parser.add_argument('--save_folder', default='eval/', type=str,
                     help='Dir to save results')
@@ -38,7 +38,7 @@ if not os.path.exists(args.save_folder):
 
 def test_net(save_folder, net, cuda, testset, transform, thresh):
     # dump predictions and assoc. ground truth to text file for now
-    filename = save_folder+'testv4.txt'
+    filename = save_folder+'testv6.txt'
     num_images = len(testset)
     for i in range(num_images):
         print('Testing image {:d}/{:d}....'.format(i+1, num_images))

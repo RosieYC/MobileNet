@@ -89,15 +89,23 @@ class SSD(nn.Module):
                     
           if k == 12:
             x = layer.conv[0](x)
-            x = layer.conv[1][0](x)
+            x = layer.conv[1](x)
+            x = layer.conv[2](x)
+            x = layer.conv[3](x)
+            #print('lll: ' , layer.conv)
+            #x = layer.conv[1][0](x)
             #print('loc2: ' , self.conf[tt](x).size()) # [8, 24, 19, 19]
             #print('conf2: ' , self.conf[tt](x).size()) # [8, 126, 19, 19]
             loc.append(self.loc[tt](x).permute(0,2,3,1).contiguous())
             conf.append(self.conf[tt](x).permute(0,2,3,1).contiguous())
-            x = layer.conv[1][1](x)
-            x = layer.conv[1][2](x)
-            x = layer.conv[2](x)
-            x = layer.conv[3](x)
+            x = layer.conv[4](x)
+            x = layer.conv[5](x)
+            x = layer.conv[6](x)
+            x = layer.conv[7](x)
+            #x = layer.conv[1][1](x)
+            #x = layer.conv[1][2](x)
+            #x = layer.conv[2](x)
+            #x = layer.conv[3](x)
             tt += 1 
           elif k == 18:
             x = layer[0](x)

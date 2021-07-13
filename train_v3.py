@@ -16,7 +16,7 @@ import torch.utils.data as data
 import numpy as np
 import argparse
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -33,15 +33,15 @@ parser.add_argument('--basenet', default='mobilenetv2_1.0-0c6065bc.pth',
                     help='Pretrained base model')#vgg16_reducedfc.pth, mobilenetv2_1.0_0701.pth
 parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
-parser.add_argument('--resume', default=None, type=str,
+parser.add_argument('--resume', default='./weights/ssd300_VOC_30000.pth', type=str,
                     help='Checkpoint state_dict file to resume training from')
-parser.add_argument('--start_iter', default=0, type=int,
+parser.add_argument('--start_iter', default=35000, type=int,
                     help='Resume training at this iter')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
                     help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
                     help='Momentum value for optim')
@@ -112,11 +112,27 @@ def train():
     if args.resume:
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
-    #else:
-    #    mb_weights = torch.load(args.save_folder + args.basenet)
-    #    print('Loading base network...')
-    #    ssd_net.mb.load_state_dict(mb_weights)
-
+    else:
+        
+        print('Loading base network...')
+        state_dict = torch.load(args.save_folder + args.basenet)
+        from collections import OrderedDict
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if k[:9] == 'features.':
+              name = k[9:]
+              new_state_dict[name]=v
+            else:
+              if k[:5] == 'conv.':
+                name = '18.' + k[5:]
+                new_state_dict[name]=v
+        torch.save(new_state_dict, 'new_model.pth')
+        ssd_net.mb.load_state_dict(torch.load('new_model.pth', map_location=lambda storage, loc: storage), strict=True)
+        '''
+        mb_weights = torch.load(args.save_folder + args.basenet)
+        print('Loading base network...')
+        ssd_net.mb.load_state_dict(mb_weights)
+        '''
     if args.cuda:
         net = net.cuda()
 
