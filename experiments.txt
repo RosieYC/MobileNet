@@ -1,6 +1,0 @@
-experiments 
-1. vgg + extras ==> mobilenet
-   6 layers ==> 39, 19, 19, 19, 19, 10 
-   分別為mobilenetv2 -- 32, 56, 72, 80, 96, 112
-   lr = 1e-3
-   'lr_steps': (80000, 100000, 120000),
